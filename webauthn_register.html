@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>تسجيل الجهاز بالبصمة</title>
+</head>
+<body>
+  <h2>اطضغط لتسجيل الجهاز بالبصمة أو الوجه</h2>
+  <button id="registerBtn">سجل الآن</button>
+
+  <script>
+    async function base64UrlToBuffer(base64url) {
+      const padding = '='.repeat((4 - base64url.length % 4) % 4);
+      const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const str = atob(base64);
+      const buffer = new Uint8Array(str.length);
+      for (let i = 0; i < str.length; i++) {
+        buffer[i] = str.charCodeAt(i);
+      }
+      return buffer.buffer;
+    }
+
+    async function registerDevice() {
+      try {
+        // استدعاء خيارات التسجيل من Flutter عبر window.flutter_inappwebview.callHandler
+        const optionsJson = await window.flutter_inappwebview.callHandler('getOptions');
+        const options = JSON.parse(optionsJson);
+
+        // تحويل الحقول التي تحتاج ArrayBuffer
+        options.challenge = await base64UrlToBuffer(options.challenge);
+        options.user.id = await base64UrlToBuffer(options.user.id);
+
+        const credential = await navigator.credentials.create({ publicKey: options });
+
+        // تحويل النتيجة إلى JSON قابل للإرسال
+        const credentialJson = {
+          id: credential.id,
+          rawId: Array.from(new Uint8Array(credential.rawId)),
+          response: {
+            clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON)),
+            attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
+          },
+          type: credential.type
+        };
+
+        // إرسال النتيجة لـ Flutter
+        window.flutter_inappwebview.callHandler('onRegisterSuccess', JSON.stringify(credentialJson));
+      } catch (error) {
+        window.flutter_inappwebview.callHandler('onRegisterError', error.toString());
+      }
+    }
+
+    document.getElementById('registerBtn').addEventListener('click', registerDevice);
+  </script>
+</body>
+</html>
