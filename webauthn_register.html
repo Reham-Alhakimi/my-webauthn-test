@@ -20,26 +20,27 @@
       return buffer.buffer;
     }
 
+    function parseOptionsFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      const optionsString = params.get("options");
+      if (!optionsString) {
+        alert("❌ لم يتم العثور على خيارات التسجيل");
+        throw new Error("Missing options in URL");
+      }
+      return JSON.parse(decodeURIComponent(optionsString));
+    }
+
     async function registerDevice() {
       try {
-        if (!window.PublicKeyCredential) {
-          throw new Error("❌ المتصفح لا يدعم WebAuthn");
-        }
+        const options = parseOptionsFromURL();
 
-        console.log("📥 طلب خيارات التسجيل من Flutter...");
-        const optionsJson = await window.flutter_inappwebview.callHandler('getOptions');
-        const options = JSON.parse(optionsJson);
-        console.log("✅ استلمنا الخيارات:", options);
+        console.log("✅ خيارات التسجيل:", options);
 
-        // تحويل الحقول التي تحتاج ArrayBuffer
         options.challenge = await base64UrlToBuffer(options.challenge);
         options.user.id = await base64UrlToBuffer(options.user.id);
 
-        console.log("🧪 جاري إنشاء credential...");
         const credential = await navigator.credentials.create({ publicKey: options });
-        console.log("✅ تم إنشاء credential:", credential);
 
-        // تحويل النتيجة إلى JSON قابل للإرسال
         const credentialJson = {
           id: credential.id,
           rawId: Array.from(new Uint8Array(credential.rawId)),
@@ -50,19 +51,17 @@
           type: credential.type
         };
 
-        console.log("📤 نرسل البيانات لـ Flutter...");
-        await window.flutter_inappwebview.callHandler('onRegisterSuccess', JSON.stringify(credentialJson));
-        console.log("🎉 تم الإرسال بنجاح!");
+        console.log("🎉 تم إنشاء credential بنجاح");
+        alert("🎉 تم تسجيل الجهاز بنجاح، الآن أعيدي الإرسال إلى الخادم.");
+
+        // بإمكانك هنا تعديل الكود ليرسل النتيجة إلى سيرفرك إذا لزم
       } catch (error) {
-        console.error("❌ حدث خطأ أثناء التسجيل:", error);
-        window.flutter_inappwebview.callHandler('onRegisterError', error.toString());
+        console.error("❌ خطأ أثناء التسجيل:", error);
+        alert("❌ خطأ أثناء التسجيل: " + error.message);
       }
     }
 
-    document.getElementById('registerBtn').addEventListener('click', () => {
-      console.log("🖱️ تم الضغط على زر التسجيل");
-      registerDevice();
-    });
+    document.getElementById('registerBtn').addEventListener('click', registerDevice);
   </script>
 </body>
 </html>
