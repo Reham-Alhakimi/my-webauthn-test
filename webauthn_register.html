@@ -1,53 +1,67 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>تسجيل الجهاز بالبصمة</title>
 </head>
 <body>
-  <h2>سجل الآن بالبصمة أو الوجه</h2>
+  <h2>اضغط لتسجيل الجهاز بالبصمة أو الوجه</h2>
   <button id="registerBtn">سجل الآن</button>
+
   <script>
-    function getParam(name) {
-      const params = new URLSearchParams(window.location.search);
-      return params.get(name);
+    async function base64UrlToBuffer(base64url) {
+      const padding = '='.repeat((4 - base64url.length % 4) % 4);
+      const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const str = atob(base64);
+      const buffer = new Uint8Array(str.length);
+      for (let i = 0; i < str.length; i++) {
+        buffer[i] = str.charCodeAt(i);
+      }
+      return buffer.buffer;
     }
 
-    document.getElementById('registerBtn').addEventListener('click', async () => {
+    async function registerDevice() {
       try {
-        const opt = getParam('options');
-        if (!opt) throw new Error('لا يوجد خيارات للتسجيل');
+        if (!window.PublicKeyCredential) {
+          throw new Error("❌ المتصفح لا يدعم WebAuthn");
+        }
 
-        const options = JSON.parse(decodeURIComponent(opt));
+        console.log("📥 طلب خيارات التسجيل من Flutter...");
+        const optionsJson = await window.flutter_inappwebview.callHandler('getOptions');
+        const options = JSON.parse(optionsJson);
+        console.log("✅ استلمنا الخيارات:", options);
 
-        const base64UrlToBuffer = base64url => {
-          const padding = '='.repeat((4 - base64url.length % 4) % 4);
-          const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
-          return Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer;
-        };
+        // تحويل الحقول التي تحتاج ArrayBuffer
+        options.challenge = await base64UrlToBuffer(options.challenge);
+        options.user.id = await base64UrlToBuffer(options.user.id);
 
-        options.challenge = base64UrlToBuffer(options.challenge);
-        options.user.id = base64UrlToBuffer(options.user.id);
-
+        console.log("🧪 جاري إنشاء credential...");
         const credential = await navigator.credentials.create({ publicKey: options });
+        console.log("✅ تم إنشاء credential:", credential);
 
-        const result = {
+        // تحويل النتيجة إلى JSON قابل للإرسال
+        const credentialJson = {
           id: credential.id,
           rawId: Array.from(new Uint8Array(credential.rawId)),
           response: {
             clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON)),
-            attestationObject: Array.from(new Uint8Array(credential.response.attestationObject))
+            attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
           },
           type: credential.type
         };
 
-        // أرسل بيانات التسجيل عبر عنوان واحد GET (بديل مؤقت)
-        const target = `intent://callback?credential=${encodeURIComponent(JSON.stringify(result))}#Intent;scheme=myapp;package=com.your.bundle;end`;
-        window.location.href = target;
-
-      } catch (err) {
-        alert('خطأ أثناء التسجيل: ' + err);
+        console.log("📤 نرسل البيانات لـ Flutter...");
+        await window.flutter_inappwebview.callHandler('onRegisterSuccess', JSON.stringify(credentialJson));
+        console.log("🎉 تم الإرسال بنجاح!");
+      } catch (error) {
+        console.error("❌ حدث خطأ أثناء التسجيل:", error);
+        window.flutter_inappwebview.callHandler('onRegisterError', error.toString());
       }
+    }
+
+    document.getElementById('registerBtn').addEventListener('click', () => {
+      console.log("🖱️ تم الضغط على زر التسجيل");
+      registerDevice();
     });
   </script>
 </body>
