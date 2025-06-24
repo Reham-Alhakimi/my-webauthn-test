@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="ar">
 <head>
@@ -22,9 +20,13 @@
       return buffer.buffer;
     }
 
-    function parseOptionsFromURL() {
+    function getParamFromURL(name) {
       const params = new URLSearchParams(window.location.search);
-      const optionsString = params.get("options");
+      return params.get(name);
+    }
+
+    function parseOptionsFromURL() {
+      const optionsString = getParamFromURL("options");
       if (!optionsString) {
         alert("❌ لم يتم العثور على خيارات التسجيل");
         throw new Error("Missing options in URL");
@@ -35,6 +37,12 @@
     async function registerDevice() {
       try {
         const options = parseOptionsFromURL();
+        const token = getParamFromURL("token");
+        if (!token) {
+          alert("❌ لم يتم العثور على التوكن");
+          throw new Error("Missing token");
+        }
+
         options.challenge = await base64UrlToBuffer(options.challenge);
         options.user.id = await base64UrlToBuffer(options.user.id);
 
@@ -50,12 +58,11 @@
           type: credential.type
         };
 
-        // ✅ إرسال النتيجة إلى الخادم مباشرة:
         const response = await fetch('http://173.248.155.167:8080/api/devices/register', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjBlODgwM2Q4LWRhZDItNDEwMS05M2Y2LThkYTI4MTkxYzdkZSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhcHAtYWRtaW4yIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiQXBwVXNlciIsImV4cCI6MTc1MDc1NjA2MSwiaXNzIjoiQnl0ZUxpbmtBUEkiLCJhdWQiOiJodHRwOi8vMTczLjI0OC4xNTUuMTY3OjgwODAifQ.882uEJa7vvpjyh26vGztO7hAOd3_JoDx5W29YfNkMaE'
+            'Authorization': 'Bearer ' + token
           },
           body: JSON.stringify(credentialJson)
         });
