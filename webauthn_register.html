@@ -54,8 +54,12 @@
         console.log("🎉 تم إنشاء credential بنجاح");
         alert("🎉 تم تسجيل الجهاز بنجاح، الآن أعيدي الإرسال إلى الخادم.");
 
-        // ✅ تعديل هنا: إرسال البيانات إلى Flutter عبر callHandler
-        window.flutter_inappwebview.callHandler('onRegisterSuccess', JSON.stringify(credentialJson));
+        // ✅ تعديل: التحقق من وجود window.flutter_inappwebview قبل استدعاء callHandler
+        if (window.flutter_inappwebview && typeof window.flutter_inappwebview.callHandler === "function") {
+          window.flutter_inappwebview.callHandler('onRegisterSuccess', JSON.stringify(credentialJson));
+        } else {
+          alert("⚠️ لا يمكن إرسال البيانات إلى تطبيق Flutter. تأكدي من أنك تستخدمين WebView من داخل التطبيق.");
+        }
 
       } catch (error) {
         console.error("❌ خطأ أثناء التسجيل:", error);
