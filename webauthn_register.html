@@ -9,7 +9,6 @@
   <button id="registerBtn">سجل الآن</button>
 
   <script>
-    // ✅ تعديل: دالة لتحويل Base64Url إلى ArrayBuffer
     async function base64UrlToBuffer(base64url) {
       const padding = '='.repeat((4 - base64url.length % 4) % 4);
       const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -21,7 +20,6 @@
       return buffer.buffer;
     }
 
-    // ✅ دالة لقراءة الخيارات من الرابط
     function parseOptionsFromURL() {
       const params = new URLSearchParams(window.location.search);
       const optionsString = params.get("options");
@@ -32,7 +30,6 @@
       return JSON.parse(decodeURIComponent(optionsString));
     }
 
-    // ✅ دالة التسجيل
     async function registerDevice() {
       try {
         const options = parseOptionsFromURL();
@@ -55,23 +52,9 @@
         };
 
         console.log("🎉 تم إنشاء credential بنجاح");
+        alert("🎉 تم تسجيل الجهاز بنجاح، الآن أعيدي الإرسال إلى الخادم.");
 
-        // ✅ تعديل هنا: إرسال الـ JSON إلى السيرفر مباشرة
-        const response = await fetch('http://173.248.155.167:8080/api/devices/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjBlODgwM2Q4LWRhZDItNDEwMS05M2Y2LThkYTI4MTkxYzdkZSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhcHAtYWRtaW4yIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiQXBwVXNlciIsImV4cCI6MTc1MDc1NDM2MiwiaXNzIjoiQnl0ZUxpbmtBUEkiLCJhdWQiOiJodHRwOi8vMTczLjI0OC4xNTUuMTY3OjgwODAifQ.lBwyhejDkMW68rnN9Ci54K9_jz0Jm8kQvX-gMHlIzfI'
-          },
-          body: JSON.stringify(credentialJson)
-        });
-
-        if (response.ok) {
-          alert("✅ تم إرسال البيانات وتسجيل الجهاز بنجاح");
-        } else {
-          const text = await response.text();
-          alert("❌ فشل في إرسال البيانات إلى الخادم: " + text);
-        }
+        // بإمكانك هنا تعديل الكود ليرسل النتيجة إلى سيرفرك إذا لزم
       } catch (error) {
         console.error("❌ خطأ أثناء التسجيل:", error);
         alert("❌ خطأ أثناء التسجيل: " + error.message);
@@ -82,3 +65,12 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
