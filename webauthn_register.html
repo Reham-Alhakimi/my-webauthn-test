@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8">
   <title>تسجيل الجهاز بالبصمة</title>
 </head>
 <body>
@@ -9,77 +9,78 @@
   <button id="registerBtn">سجل الآن</button>
 
   <script>
-    async function base64UrlToBuffer(base64url) {
-      const padding = '='.repeat((4 - base64url.length % 4) % 4);
-      const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
-      const str = atob(base64);
-      const buffer = new Uint8Array(str.length);
-      for (let i = 0; i < str.length; i++) {
-        buffer[i] = str.charCodeAt(i);
+    // تحويل Base64Url إلى ArrayBuffer
+    function b64urlToBuf(b64url) {
+      const pad = '='.repeat((4 - b64url.length % 4) % 4);
+      const b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(b64);
+      return Uint8Array.from([...bin].map(c => c.charCodeAt(0))).buffer;
+    }
+
+    // تحويل ArrayBuffer إلى Base64Url
+    function bufferToBase64url(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let b of bytes) {
+        binary += String.fromCharCode(b);
       }
-      return buffer.buffer;
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
 
-    function getParamFromURL(name) {
-      const params = new URLSearchParams(window.location.search);
-      return params.get(name);
+    // قراءة الخيارات والتوكن من الرابط
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    const optionsString = params.get('options');
+
+    if (!optionsString || !token) {
+      alert('❌ لا توجد بيانات كافية في الرابط');
+      throw 'Missing data';
     }
 
-    function parseOptionsFromURL() {
-      const optionsString = getParamFromURL("options");
-      if (!optionsString) {
-        alert("❌ لم يتم العثور على خيارات التسجيل");
-        throw new Error("Missing options in URL");
-      }
-      return JSON.parse(decodeURIComponent(optionsString));
-    }
+    const options = JSON.parse(decodeURIComponent(optionsString));
+    options.challenge = b64urlToBuf(options.challenge);
+    options.user.id = b64urlToBuf(options.user.id);
 
-    async function registerDevice() {
+    // دالة التسجيل
+    async function register() {
       try {
-        const options = parseOptionsFromURL();
-        const token = getParamFromURL("token");
-        if (!token) {
-          alert("❌ لم يتم العثور على التوكن");
-          throw new Error("Missing token");
-        }
+        const cred = await navigator.credentials.create({ publicKey: options });
 
-        options.challenge = await base64UrlToBuffer(options.challenge);
-        options.user.id = await base64UrlToBuffer(options.user.id);
-
-        const credential = await navigator.credentials.create({ publicKey: options });
-
-        const credentialJson = {
-          id: credential.id,
-          rawId: Array.from(new Uint8Array(credential.rawId)),
+        const attestationResponse = {
+          id: cred.id,
+          rawId: cred.rawId, // بدون تحويل
+          type: cred.type,
+          extensions: cred.getClientExtensionResults?.(),
           response: {
-            clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON)),
-            attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
-          },
-          type: credential.type
+            attestationObject: bufferToBase64url(cred.response.attestationObject),
+            clientDataJSON: bufferToBase64url(cred.response.clientDataJSON),
+            transports: cred.response.getTransports?.() || []
+          }
         };
 
-        const response = await fetch('http://173.248.155.167:8080/api/devices/register', {
+        const res = await fetch('https://api.experts-imb.com/api/devices/register', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + token
           },
-          body: JSON.stringify(credentialJson)
+          body: JSON.stringify({ AttestationResponse: attestationResponse })
         });
 
-        if (response.ok) {
-          alert('🎉 تم تسجيل الجهاز بنجاح في الخادم');
+        if (res.ok) {
+          alert('✅ تم تسجيل الجهاز بنجاح');
         } else {
-          const errorText = await response.text();
+          const errorText = await res.text();
           alert('❌ فشل تسجيل الجهاز: ' + errorText);
         }
-      } catch (error) {
-        console.error("❌ خطأ أثناء التسجيل:", error);
-        alert("❌ خطأ أثناء التسجيل: " + error.message);
+
+      } catch (e) {
+        console.error('❌ خطأ أثناء التسجيل:', e);
+        alert('❌ خطأ أثناء التسجيل: ' + e.message);
       }
     }
 
-    document.getElementById('registerBtn').addEventListener('click', registerDevice);
+    document.getElementById('registerBtn').onclick = register;
   </script>
 </body>
 </html>
