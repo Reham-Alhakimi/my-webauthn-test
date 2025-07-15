@@ -48,7 +48,7 @@
 
         const attestationResponse = {
           id: cred.id,
-          rawId: cred.rawId, // بدون تحويل
+          rawId: bufferToBase64url(cred.rawId), // ✅ هذا السطر مهم جداً
           type: cred.type,
           extensions: cred.getClientExtensionResults?.(),
           response: {
